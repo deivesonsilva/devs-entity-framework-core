@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using DevsEntityFrameworkCore.Application.Interfaces;
@@ -33,13 +34,14 @@ namespace DevsEntityFrameworkCore.Application.Services
 
             _logger.LogTrace("Creating Mappings...");
 
-
             foreach (EntityFile entity in entities)
             {
                 await CreateMappingFile(entity);
             }
 
             _csproj.FolderInclude(Folder.Mappings);
+
+            await CreateContextFile(entities);
         }
 
         private async Task CreateMappingFile(EntityFile entity)
@@ -88,6 +90,55 @@ namespace DevsEntityFrameworkCore.Application.Services
                 stream.Close();
             }
             _logger.LogTrace($"{entity.ClassName}Map.cs created");
+        }
+
+        private async Task CreateContextFile(ICollection<EntityFile> entities)
+        {
+            StringBuilder sb = new StringBuilder();
+            string identy = "   ";
+            EntityFile entity = entities?.Single();
+
+            sb.AppendLine($"using {entity.Namespace}.{Folder.Entities};");
+            sb.AppendLine($"using {entity.Namespace}.{Folder.Mappings};");
+            sb.AppendLine("using Microsoft.EntityFrameworkCore;");
+            sb.AppendLine();
+            sb.AppendLine($"namespace {entity.Namespace}");
+            sb.AppendLine("{");
+            sb.AppendLine($"{identy}public class RepositoryContext : DbContext");
+            sb.AppendLine($"{identy}" + "{");
+            sb.AppendLine($"{identy}{identy}public RepositoryContext(DbContextOptions<RepositoryContext> options)");
+            sb.AppendLine($"{identy}{identy}{identy}: base(options) " + "{ }");
+            sb.AppendLine();
+            sb.AppendLine($"{identy}{identy}protected override void OnModelCreating(ModelBuilder builder)");
+            sb.AppendLine($"{identy}{identy}" + "{");
+            foreach(EntityFile enti in entities)
+            {
+                sb.AppendLine($"{identy}{identy}{identy}builder.ApplyConfiguration(new {enti.ClassName}Map());");
+            }
+            sb.AppendLine($"{identy}{identy}" + "}");
+            sb.AppendLine();
+            foreach (EntityFile enti in entities)
+            {
+                sb.AppendLine($"{identy}{identy}public DbSet<{enti.ClassName}> {enti.ClassName}s "+"{ get; set; }");
+            }
+            sb.AppendLine($"{identy}" + "}");
+            sb.AppendLine("}");
+
+            string pathfilemap = Path.Combine(_optionsCommand.DirectoryWorking, $"RepositoryContext.cs");
+
+            if (File.Exists(pathfilemap) && !_optionsCommand.ReplaceFile)
+            {
+                _logger.LogTrace($"RepositoryContext.cs not created. A file with that name already exists");
+                return;
+            }
+
+            using (var stream = new FileStream(pathfilemap, FileMode.Create, FileAccess.Write, FileShare.Write, 4096, useAsync: true))
+            {
+                var bytes = Encoding.UTF8.GetBytes(sb.ToString());
+                await stream.WriteAsync(bytes, 0, bytes.Length);
+                stream.Close();
+            }
+            _logger.LogTrace($"RepositoryContext.cs created");
         }
     }
 }
