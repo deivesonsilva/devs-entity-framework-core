@@ -49,6 +49,7 @@ namespace DevsEntityFrameworkCore.ConsoleUi
                     .AddScoped<IOptionsCommand, OptionsCommand>()
                     .AddTransient<IMappingService, MappingService>()
                     .AddTransient<IRepositoryService, RepositoryService>()
+                    .AddTransient<IStartService, StartService>()
                     .BuildServiceProvider();
 
                 var app = new CommandLineApplication<Program>();

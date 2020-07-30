@@ -8,14 +8,17 @@ namespace DevsEntityFrameworkCore.ConsoleUi.SubCommands
     [Command(FullName = "start", Name = "start", Description = "Used to prepare the solution")]
     public class StartCommand : OptionsCommandBase
     {
+        private readonly IStartService _startService;
         private readonly IOptionsCommand _optionsCommand;
 
         public StartCommand(
             ILoggerFactory logger,
             IConsole console,
+            IStartService startService,
             IOptionsCommand optionsCommand)
             : base(logger, console)
         {
+            _startService = startService;
             _optionsCommand = optionsCommand;
         }
 
@@ -27,7 +30,8 @@ namespace DevsEntityFrameworkCore.ConsoleUi.SubCommands
             if (OptionReplaceFile.HasValue)
                 _optionsCommand.ReplaceFile = OptionReplaceFile.Value;
 
-            Logger.LogTrace("not implemented");
+            await _startService.Handler();
+            Logger.LogTrace("Start Finished");
 
             return await base.OnExecute(application);
         }

@@ -8,5 +8,6 @@ namespace DevsEntityFrameworkCore.Application.Interfaces
     {
         Task<ICollection<EntityFile>> GetEntitiesFiles();
         void FolderInclude(string foldername);
+        bool ExistPackageReference(string packagename);
     }
 }

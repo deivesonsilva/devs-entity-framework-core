@@ -120,6 +120,25 @@ namespace DevsEntityFrameworkCore.Application.Services
             return entities;
         }
 
+        public bool ExistPackageReference(string packagename)
+        {
+            string filenamecsproj = GetFileNameCsproj();
+
+            XmlDocument xdoc = new XmlDocument();
+            xdoc.Load(filenamecsproj);
+
+            XmlNodeList listFolder = xdoc.SelectNodes("Project/ItemGroup/PackageReference");
+            bool packageExist = false;
+
+            foreach (XmlNode n in listFolder)
+            {
+                if (n.Attributes["Include"].InnerText.Equals(packagename))
+                    packageExist = true;
+            }
+            return packageExist;
+        }
+
+
         private async Task<string> GetContentFile(string path)
         {
             const string reduceMultiSpace = @"[ ]{2,}";
@@ -222,6 +241,6 @@ namespace DevsEntityFrameworkCore.Application.Services
                 throw new Exception("more than one .csproj file found");
 
             return filenamelist[0];
-        }
+        }  
     }
 }
