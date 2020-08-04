@@ -1,7 +1,7 @@
 ﻿using System;
 //[us-rep]
 
-namespace Application
+namespace //[ns-rep]
 {
     public class RepositoryUnitWork : IRepositoryUnitWork, IDisposable
     {
