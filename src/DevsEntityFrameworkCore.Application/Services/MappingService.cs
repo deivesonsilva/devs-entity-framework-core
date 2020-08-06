@@ -1,6 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using DevsEntityFrameworkCore.Application.Interfaces;
@@ -12,48 +12,53 @@ namespace DevsEntityFrameworkCore.Application.Services
     public class MappingService : IMappingService
     {
         private readonly ILogger _logger;
+        private readonly IOptionsCommand _options;
         private readonly ICsprojService _csproj;
-        private readonly IOptionsCommand _optionsCommand;
+        private readonly IEntityService _entityService;
+        private readonly IFileService _fileService;
 
         public MappingService(
             ILoggerFactory logger,
+            IOptionsCommand options,
             ICsprojService csproj,
-            IOptionsCommand optionsCommand)
+            IEntityService entityService,
+            IFileService fileService)
         {
             _logger = logger.CreateLogger(GetType());
+            _options = options;
             _csproj = csproj;
-            _optionsCommand = optionsCommand;
+            _entityService = entityService;
+            _fileService = fileService;
         }
 
-        public async Task Handler()
+        public async Task CreateMappingFiles()
         {
-            ICollection<EntityFile> entities = await _csproj.GetEntitiesFiles();
-
-            if (entities.Count <= 0)
-                return;
-
             _logger.LogTrace("Creating Mappings...");
 
-            foreach (EntityFile entity in entities)
+            ICollection<EntityMap> entitiesMap = await _entityService.GetEntities(true);
+
+            if (entitiesMap.Count == 0)
+                throw new Exception($"{Path.Combine(_csproj.ProjectPath, Folder.Entities)} not found or is empty");
+                
+            foreach (EntityMap map in entitiesMap)
             {
-                await CreateMappingFile(entity);
+                string content = GenerateMappingFile(map);
+                await SaveFile(content, map);
             }
 
             _csproj.FolderInclude(Folder.Mappings);
-
-            await CreateContextFile(entities);
         }
 
-        private async Task CreateMappingFile(EntityFile entity)
+        private string GenerateMappingFile(EntityMap entity)
         {
             StringBuilder sb = new StringBuilder();
             string identy = "   ";
 
-            sb.AppendLine($"using {entity.Namespace}.{Folder.Entities};");
             sb.AppendLine("using Microsoft.EntityFrameworkCore;");
             sb.AppendLine("using Microsoft.EntityFrameworkCore.Metadata.Builders;");
+            sb.AppendLine($"using {_csproj.ProjectNamespace}.{Folder.Entities};");
             sb.AppendLine();
-            sb.AppendLine($"namespace {entity.Namespace}.{Folder.Mappings}");
+            sb.AppendLine($"namespace {_csproj.ProjectNamespace}.{Folder.Mappings}");
             sb.AppendLine("{");
             sb.AppendLine($"{identy}public class {entity.ClassName}Map : IEntityTypeConfiguration<{entity.ClassName}>");
             sb.AppendLine($"{identy}" + "{");
@@ -62,7 +67,7 @@ namespace DevsEntityFrameworkCore.Application.Services
             sb.AppendLine($"{identy}{identy}{identy}builder.ToTable(\"{entity.ClassName}\");");
             sb.AppendLine($"{identy}{identy}{identy}builder.HasKey(x => x.Id);");
 
-            foreach (EntityProperty prop in entity.Properties)
+            foreach (EntityPropertyMap prop in entity.Properties)
             {
                 sb.AppendLine($"{identy}{identy}{identy}builder.Property(x => x.{prop.Name});");
             }
@@ -71,74 +76,25 @@ namespace DevsEntityFrameworkCore.Application.Services
             sb.AppendLine($"{identy}" + "}");
             sb.AppendLine("}");
 
-            string pathmap = Path.Combine(_optionsCommand.DirectoryWorking, Folder.Mappings);
-            string pathfilemap = Path.Combine(pathmap, $"{entity.ClassName}Map.cs");
-
-            if (!Directory.Exists(pathmap))
-                Directory.CreateDirectory(pathmap);
-
-            if (File.Exists(pathfilemap) && !_optionsCommand.ReplaceFile)
-            {
-                _logger.LogTrace($"{entity.ClassName}Map.cs not created. A file with that name already exists");
-                return;
-            }
-                
-            using (var stream = new FileStream(pathfilemap, FileMode.Create, FileAccess.Write, FileShare.Write, 4096, useAsync: true))
-            {
-                var bytes = Encoding.UTF8.GetBytes(sb.ToString());
-                await stream.WriteAsync(bytes, 0, bytes.Length);
-                stream.Close();
-            }
-            _logger.LogTrace($"{entity.ClassName}Map.cs created");
+            return sb.ToString();
         }
 
-        private async Task CreateContextFile(ICollection<EntityFile> entities)
+        private async Task SaveFile(string content, EntityMap entity)
         {
-            StringBuilder sb = new StringBuilder();
-            string identy = "   ";
-            EntityFile entity = entities?.Single();
+            string pathRoot = Path.Combine(_csproj.ProjectPath, Folder.Mappings);
+            string pathfilemap = Path.Combine(pathRoot, $"{entity.ClassName}Map.cs");
 
-            sb.AppendLine($"using {entity.Namespace}.{Folder.Entities};");
-            sb.AppendLine($"using {entity.Namespace}.{Folder.Mappings};");
-            sb.AppendLine("using Microsoft.EntityFrameworkCore;");
-            sb.AppendLine();
-            sb.AppendLine($"namespace {entity.Namespace}");
-            sb.AppendLine("{");
-            sb.AppendLine($"{identy}public class RepositoryContext : DbContext");
-            sb.AppendLine($"{identy}" + "{");
-            sb.AppendLine($"{identy}{identy}public RepositoryContext(DbContextOptions<RepositoryContext> options)");
-            sb.AppendLine($"{identy}{identy}{identy}: base(options) " + "{ }");
-            sb.AppendLine();
-            sb.AppendLine($"{identy}{identy}protected override void OnModelCreating(ModelBuilder builder)");
-            sb.AppendLine($"{identy}{identy}" + "{");
-            foreach(EntityFile enti in entities)
-            {
-                sb.AppendLine($"{identy}{identy}{identy}builder.ApplyConfiguration(new {enti.ClassName}Map());");
-            }
-            sb.AppendLine($"{identy}{identy}" + "}");
-            sb.AppendLine();
-            foreach (EntityFile enti in entities)
-            {
-                sb.AppendLine($"{identy}{identy}public DbSet<{enti.ClassName}> {enti.ClassName}s "+"{ get; set; }");
-            }
-            sb.AppendLine($"{identy}" + "}");
-            sb.AppendLine("}");
+            if (!Directory.Exists(pathRoot))
+                Directory.CreateDirectory(pathRoot);
 
-            string pathfilemap = Path.Combine(_optionsCommand.DirectoryWorking, $"RepositoryContext.cs");
-
-            if (File.Exists(pathfilemap) && !_optionsCommand.ReplaceFile)
+            if (File.Exists(pathfilemap) && !_options.ReplaceFile)
             {
-                _logger.LogTrace($"RepositoryContext.cs not created. A file with that name already exists");
+                _logger.LogTrace($"{entity.ClassName}Map.cs not created. A file with the same name already exists");
                 return;
             }
 
-            using (var stream = new FileStream(pathfilemap, FileMode.Create, FileAccess.Write, FileShare.Write, 4096, useAsync: true))
-            {
-                var bytes = Encoding.UTF8.GetBytes(sb.ToString());
-                await stream.WriteAsync(bytes, 0, bytes.Length);
-                stream.Close();
-            }
-            _logger.LogTrace($"RepositoryContext.cs created");
+            await _fileService.SaveFile(content, pathfilemap);
+            _logger.LogTrace($"{entity.ClassName}Map.cs created");
         }
     }
 }

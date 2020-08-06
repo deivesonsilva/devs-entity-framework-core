@@ -4,6 +4,7 @@ namespace DevsEntityFrameworkCore.Application.Interfaces
 {
     public interface IRepositoryService
     {
-        Task Handler();
+        Task CreateRepositories();
+        Task CreateRepositoryBase();
     }
 }

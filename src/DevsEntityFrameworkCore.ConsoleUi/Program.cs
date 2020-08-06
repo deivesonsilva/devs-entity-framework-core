@@ -13,17 +13,13 @@ using Serilog;
 namespace DevsEntityFrameworkCore.ConsoleUi
 {
     [Command("devs", "Fast Development with Entity Framework Core")]
-    [Subcommand(typeof(StartCommand))]
+    [Subcommand(typeof(InitializeCommand))]
     [Subcommand(typeof(MappingCommand))]
     [Subcommand(typeof(RepositoryCommand))]
     [VersionOptionFromMember("--version", MemberName = nameof(GetVersion))]
     public class Program : CommandBase
     {
-        public Program(
-            ILoggerFactory logger,
-            IConsole console) : base(logger, console) { }
-
-        protected override Task<int> OnExecute(CommandLineApplication application)
+        protected override Task OnExecute(CommandLineApplication application)
         {
             application.ShowHelp();
             return base.OnExecute(application);
@@ -49,7 +45,11 @@ namespace DevsEntityFrameworkCore.ConsoleUi
                     .AddScoped<IOptionsCommand, OptionsCommand>()
                     .AddTransient<IMappingService, MappingService>()
                     .AddTransient<IRepositoryService, RepositoryService>()
-                    .AddTransient<IStartService, StartService>()
+                    .AddTransient<IContextService, ContextService>()
+                    .AddTransient<IFileService, FileService>()
+                    .AddTransient<IEntityService, EntityService>()
+                    .AddTransient<IUnitWorkService, UnitWorkService>()
+                    .AddTransient<IConfigureInjectionService, ConfigureInjectionService>()
                     .BuildServiceProvider();
 
                 var app = new CommandLineApplication<Program>();

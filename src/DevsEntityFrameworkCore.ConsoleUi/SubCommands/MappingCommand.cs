@@ -1,7 +1,6 @@
 ﻿using System.Threading.Tasks;
 using DevsEntityFrameworkCore.Application.Interfaces;
 using McMaster.Extensions.CommandLineUtils;
-using Microsoft.Extensions.Logging;
 
 namespace DevsEntityFrameworkCore.ConsoleUi.SubCommands
 {
@@ -9,30 +8,30 @@ namespace DevsEntityFrameworkCore.ConsoleUi.SubCommands
     public class MappingCommand : OptionsCommandBase
     {
         private readonly IMappingService _mappingService;
-        private readonly IOptionsCommand _optionsCommand;
+        private readonly IOptionsCommand _options;
+        private readonly ICsprojService _csprojService;
 
         public MappingCommand(
-            ILoggerFactory logger,
-            IConsole console,
+            IOptionsCommand options,
             IMappingService mappingService,
-            IOptionsCommand optionsCommand) : base(logger, console)
+            ICsprojService csprojService)
         {
+            _options = options;
             _mappingService = mappingService;
-            _optionsCommand = optionsCommand;
+            _csprojService = csprojService;
         }
 
-        protected override async Task<int> OnExecute(CommandLineApplication application)
+        protected override async Task OnExecute(CommandLineApplication application)
         {
             if (!string.IsNullOrEmpty(OptionDirectoryWorking))
-                _optionsCommand.DirectoryWorking = OptionDirectoryWorking;
+                _options.DirectoryWorking = OptionDirectoryWorking;
 
             if (OptionReplaceFile.HasValue)
-                _optionsCommand.ReplaceFile = OptionReplaceFile.Value;
+                _options.ReplaceFile = OptionReplaceFile.Value;
 
-            await _mappingService.Handler();
-            Logger.LogTrace("Mapping Finished");
+            _csprojService.IsValidProject(_options.DirectoryWorking);
 
-            return await base.OnExecute(application);
+            await _mappingService.CreateMappingFiles();
         } 
     }
 }

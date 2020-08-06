@@ -4,6 +4,10 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{8546CF4D-CD45-4F28-B791-376B443ED485}"
 	ProjectSection(SolutionItems) = preProject
 		README.md = README.md
+		docs\IRepositoryBase.cs = docs\IRepositoryBase.cs
+		docs\RepositoryBase.cs = docs\RepositoryBase.cs
+		docs\IRepositoryUnitWork.cs = docs\IRepositoryUnitWork.cs
+		docs\RepositoryUnitWork.cs = docs\RepositoryUnitWork.cs
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{3365FBB8-377E-4B3A-91E3-91B9B44D4CB9}"

@@ -1,33 +1,48 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using System.Xml;
 using DevsEntityFrameworkCore.Application.Interfaces;
-using DevsEntityFrameworkCore.Application.Models;
 using Microsoft.Extensions.Logging;
 
 namespace DevsEntityFrameworkCore.Application.Services
 {
     public class CsprojService : ICsprojService
     {
+        private string _projectFileName;
+        private string _projectNamespace;
+        private string _projectPath;
         private readonly ILogger _logger;
-        private readonly IOptionsCommand _optionsCommand;
+        private readonly IFileService _fileService;
+
+        public string ProjectFileName { get { return _projectFileName; } }
+        public string ProjectNamespace { get { return _projectNamespace; } }
+        public string ProjectPath { get { return _projectPath; } }
 
         public CsprojService(
             ILoggerFactory logger,
-            IOptionsCommand optionsCommand) {
+            IFileService fileService) {
             _logger = logger.CreateLogger(GetType());
-            _optionsCommand = optionsCommand;
+            _fileService = fileService;
+        }
+
+        public void IsValidProject(string fullpath)
+        {
+            if (string.IsNullOrEmpty(fullpath))
+                throw new Exception("Project path is required");
+
+            if (!fullpath.Contains(".csproj") && !fullpath.EndsWith("/"))
+                fullpath += "/";
+
+            _projectPath = Path.GetDirectoryName(fullpath);
+            _projectFileName = GetProjectName(fullpath);
+            _projectNamespace = _projectFileName.Replace(".csproj", string.Empty);  
         }
 
         public void FolderInclude(string foldername)
         {
-            string filenamecsproj = GetFileNameCsproj();
-
+            string fullpath = Path.Combine(_projectPath, _projectFileName);
             XmlDocument xdoc = new XmlDocument();
-            xdoc.Load(filenamecsproj);
+            xdoc.Load(fullpath);
             
             XmlNodeList listFolder = xdoc.SelectNodes("Project/ItemGroup/Folder");
             bool folderExist = false;
@@ -57,190 +72,63 @@ namespace DevsEntityFrameworkCore.Application.Services
                 xEleFol.SetAttribute("Include", foldername + @"\");
                 ndItem.AppendChild(xEleFol);
             }
-            xdoc.Save(filenamecsproj);
+            xdoc.Save(fullpath);
             _logger.LogTrace($"{foldername} folder included in .csproj");
         }
 
-        public async Task<ICollection<EntityFile>> GetEntitiesFiles()
+        public void ExistPackageReference()
         {
-            List<EntityFile> entities = new List<EntityFile>();
-            string pathentities = Path.Combine(_optionsCommand.DirectoryWorking, Folder.Entities);
-
-            string[] filenamelist = Directory.GetFiles(pathentities, "*.cs", SearchOption.AllDirectories);
-
-            if (filenamelist.Length <= 0)
-                throw new Exception($"{pathentities} folder is empty");
-
-            foreach (string pathfile in filenamelist)
+            string[] packages = new string[]
             {
-                FileInfo file = new FileInfo(pathfile);
-                string fileContent = await GetContentFile(pathfile);
+                "Microsoft.EntityFrameworkCore",
+                "Microsoft.EntityFrameworkCore.Relational",
+                "Microsoft.EntityFrameworkCore.Design",
+                "Microsoft.AspNetCore.Http.Abstractions"
+            };
 
-                if (string.IsNullOrEmpty(fileContent))
-                {
-                    _logger.LogTrace($"The file {file.Name} is empty");
-                    continue;
-                }
-
-                string classname = GetClassName(fileContent);
-                
-                if (string.IsNullOrEmpty(classname))
-                {
-                    _logger.LogTrace($"Class Name not found in {file.Name}");
-                    continue;
-                }
-
-                if (!IsValidClass(fileContent, classname))
-                {
-                    _logger.LogTrace($"The Class {classname} is not public Class");
-                    continue;
-                }
-
-                string namespacedesc = GetNameSpace(fileContent);
-
-                if (string.IsNullOrEmpty(namespacedesc))
-                {
-                    _logger.LogTrace($"Namespace not found in {file.Name}");
-                    continue;
-                }
-
-                if (!IsValidNameSpace(fileContent, namespacedesc))
-                {
-                    _logger.LogTrace($"The Namespace {namespacedesc} in {file.Name} is invalid");
-                    continue;
-                }
-
-                EntityFile entity = new EntityFile();
-                entity.ClassName = classname;
-                entity.Namespace = namespacedesc;
-                entity.Properties = GetProperties(fileContent);
-                entities.Add(entity);
-                _logger.LogTrace($"{file.Name}");
-            }
-            return entities;
-        }
-
-        public bool ExistPackageReference(string packagename)
-        {
-            string filenamecsproj = GetFileNameCsproj();
+            string fullpath = Path.Combine(_projectPath, _projectFileName);
 
             XmlDocument xdoc = new XmlDocument();
-            xdoc.Load(filenamecsproj);
+            xdoc.Load(fullpath);
 
             XmlNodeList listFolder = xdoc.SelectNodes("Project/ItemGroup/PackageReference");
             bool packageExist = false;
 
-            foreach (XmlNode n in listFolder)
+            foreach (string pack in packages)
             {
-                if (n.Attributes["Include"].InnerText.Equals(packagename))
-                    packageExist = true;
-            }
-            return packageExist;
-        }
-
-
-        private async Task<string> GetContentFile(string path)
-        {
-            const string reduceMultiSpace = @"[ ]{2,}";
-
-            string content = string.Join(" ", await File.ReadAllLinesAsync(path));
-
-            return Regex.Replace(content.Replace("\t", " "), reduceMultiSpace, " ");
-        }
-
-        private string GetClassName(string filecontent)
-        {
-            string[] splitclassname;
-
-            splitclassname = filecontent.Split("class");
-
-            if (splitclassname == null || splitclassname.Length != 2)
-                return string.Empty;
-
-            splitclassname = splitclassname[1].Split("{");
-            splitclassname = splitclassname[0].Split(":");
-
-            return splitclassname[0].Replace(" ", string.Empty);
-        }
-
-        private string GetNameSpace(string filecontent)
-        {
-            string[] splitnamespace;
-
-            splitnamespace = filecontent.Split("namespace");
-
-            if (splitnamespace == null || splitnamespace.Length != 2)
-                return string.Empty;
-
-            splitnamespace = splitnamespace[1].Split("{");
-
-            return splitnamespace[0]
-                .Replace(" ", string.Empty)
-                .Replace($".{Folder.Entities}", string.Empty);
-        }
-
-        private ICollection<EntityProperty> GetProperties(string filecontent)
-        {
-            string[] splitPublic = filecontent.Split("public");
-            ICollection<EntityProperty> properties = new List<EntityProperty>();
-
-            foreach (string line in splitPublic)
-            {
-                //remove line with "class"
-                if (line.Contains("class"))
-                    continue;
-
-                //remove line with "()" method
-                if (line.Contains("() {"))
-                    continue;
-
-                //remove line with "using"
-                if (line.Contains("using"))
-                    continue;
-
-                //remove get; set;
-                string[] splitcolch = line.Split("{");
-
-                //_logger.LogTrace(splitcolch[0]);
-                string[] content = splitcolch[0].Split(" ", StringSplitOptions.RemoveEmptyEntries);
-
-                EntityProperty prop = new EntityProperty
+                foreach (XmlNode n in listFolder)
                 {
-                    Type = content[0],
-                    Name = content[1]
-                };
-                properties.Add(prop);
+                    if (n.Attributes["Include"].InnerText.Equals(pack))
+                        packageExist = true;
+                }
+
+                if (!packageExist)
+                    _logger.LogTrace($"You must install the package {pack}");
             }
-            return properties;
         }
 
-        private bool IsValidClass(string filecontent, string classname)
+        private string GetProjectName(string fullpath)
         {
-            if (filecontent.Contains($"public class {classname}"))
-                return true;
+            string result = string.Empty;
 
-            return false;
-        }
+            if (fullpath.Contains(".csproj"))
+                result = Path.GetFileName(fullpath);
 
-        private bool IsValidNameSpace(string filecontent, string namespacedesc)
-        {
-            if (filecontent.Contains($"namespace {namespacedesc}"))
-                return true;
+            if (string.IsNullOrEmpty(result))
+            {
+                string[] filenamelist = _fileService.GetFileFromFolder(_projectPath, "*.csproj");
 
-            return false;
-        }
+                if (filenamelist != null && filenamelist.Length == 1)
+                    result = Path.GetFileName(filenamelist[0]);
+            }
 
-        private string GetFileNameCsproj()
-        {
-            string[] filenamelist = Directory.GetFiles(_optionsCommand.DirectoryWorking, "*.csproj");
-
-            if (filenamelist == null || filenamelist.Length == 0)
+            if (string.IsNullOrEmpty(result))
                 throw new Exception(".csproj file not found");
 
-            if (filenamelist.Length > 1)
-                throw new Exception("more than one .csproj file found");
+            if (!File.Exists(Path.Combine(Path.GetDirectoryName(fullpath), result)))
+                throw new Exception($"{result} file not found");
 
-            return filenamelist[0];
+            return result;
         }  
     }
 }

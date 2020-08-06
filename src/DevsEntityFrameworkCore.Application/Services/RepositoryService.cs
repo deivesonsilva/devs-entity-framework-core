@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
@@ -12,116 +13,177 @@ namespace DevsEntityFrameworkCore.Application.Services
     {
         private readonly ILogger _logger;
         private readonly ICsprojService _csproj;
-        private readonly IOptionsCommand _optionsCommand;
+        private readonly IOptionsCommand _options;
+        private readonly IEntityService _entityService;
+        private readonly IFileService _fileService;
 
         public RepositoryService(
             ILoggerFactory logger,
             ICsprojService csproj,
-            IOptionsCommand optionsCommand)
+            IOptionsCommand options,
+            IEntityService entityService,
+            IFileService fileService)
         {
             _logger = logger.CreateLogger(GetType());
             _csproj = csproj;
-            _optionsCommand = optionsCommand;
+            _options = options;
+            _entityService = entityService;
+            _fileService = fileService;
         }
 
-        public async Task Handler()
+        public async Task CreateRepositories()
         {
-            ICollection<EntityFile> entities = await _csproj.GetEntitiesFiles();
-
-            if (entities.Count <= 0)
-                return;
-
             _logger.LogTrace("Creating Repositories...");
 
-            foreach (EntityFile entity in entities)
+            ICollection<EntityMap> entitiesMap = await _entityService.GetEntities(false);
+
+            if (entitiesMap.Count == 0)
+                throw new Exception($"{Path.Combine(_csproj.ProjectPath, Folder.Entities)} not found or is empty");
+
+            foreach (EntityMap map in entitiesMap)
             {
-                await CreateRepositoryFile(entity);
+                string content = string.Empty;
+
+                content = GenerateRepositoryInterface(map);
+                await SaveRepositoryInterface(content, map);
+
+                content = GenerateRepositoryClass(map);
+                await SaveRepositoryClass(content, map);
             }
 
             _csproj.FolderInclude(Folder.Repositories);
-
-            _logger.LogTrace("Creating Interfaces...");
-
-            foreach (EntityFile entity in entities)
-            {
-                await CreateInterfaceFile(entity);
-            }
-
             _csproj.FolderInclude(Folder.Interfaces);
         }
 
-        private async Task CreateRepositoryFile(EntityFile entity)
+        private string GenerateRepositoryInterface(EntityMap map)
         {
             StringBuilder sb = new StringBuilder();
             string identy = "   ";
 
-            sb.AppendLine($"using {entity.Namespace}.{Folder.Entities};");
-            sb.AppendLine($"using {entity.Namespace}.{Folder.Interfaces};");
+            sb.AppendLine($"using {_csproj.ProjectNamespace}.{Folder.Entities};");
             sb.AppendLine();
-            sb.AppendLine($"namespace {entity.Namespace}.{Folder.Repositories}");
+            sb.AppendLine($"namespace {_csproj.ProjectNamespace}.{Folder.Interfaces}");
             sb.AppendLine("{");
-            sb.AppendLine($"{identy}public class {entity.ClassName}Repository : RepositoryBase<{entity.ClassName}>, I{entity.ClassName}Repository");
+            sb.AppendLine($"{identy}public interface I{map.ClassName}Repository : IRepositoryBase<{map.ClassName}>");
             sb.AppendLine($"{identy}" + "{");
-            sb.AppendLine($"{identy}{identy}public {entity.ClassName}Repository(RepositoryContext context) : base(context)");
+            sb.AppendLine($"{identy}" + "}");
+            sb.AppendLine("}");
+
+            return sb.ToString();
+        }
+
+        private async Task SaveRepositoryInterface(string content, EntityMap map)
+        {
+            string pathmap = Path.Combine(_csproj.ProjectPath, Folder.Interfaces);
+            string pathfile = Path.Combine(pathmap, $"I{map.ClassName}Repository.cs");
+
+            if (File.Exists(pathfile) && !_options.ReplaceFile)
+            {
+                _logger.LogTrace($"I{map.ClassName}Repository.cs not created. A file with that name already exists");
+                return;
+            }
+
+            await _fileService.SaveFile(content, pathfile);
+            _logger.LogTrace($"I{map.ClassName}Repository.cs created");
+        }
+
+        private string GenerateRepositoryClass(EntityMap map)
+        {
+            StringBuilder sb = new StringBuilder();
+            string identy = "   ";
+
+            sb.AppendLine($"using {_csproj.ProjectNamespace}.{Folder.Entities};");
+            sb.AppendLine($"using {_csproj.ProjectNamespace}.{Folder.Interfaces};");
+            sb.AppendLine();
+            sb.AppendLine($"namespace {_csproj.ProjectNamespace}.{Folder.Repositories}");
+            sb.AppendLine("{");
+            sb.AppendLine($"{identy}public class {map.ClassName}Repository : RepositoryBase<{map.ClassName}>, I{map.ClassName}Repository");
+            sb.AppendLine($"{identy}" + "{");
+            sb.AppendLine($"{identy}{identy}public {map.ClassName}Repository(RepositoryContext context) : base(context)");
             sb.AppendLine($"{identy}{identy}" + "{");
             sb.AppendLine($"{identy}{identy}" + "}");
             sb.AppendLine($"{identy}" + "}");
             sb.AppendLine("}");
 
-            string pathmap = Path.Combine(_optionsCommand.DirectoryWorking, Folder.Repositories);
-            string pathfilemap = Path.Combine(pathmap, $"{entity.ClassName}Repository.cs");
-
-            if (!Directory.Exists(pathmap))
-                Directory.CreateDirectory(pathmap);
-
-            if (File.Exists(pathfilemap) && !_optionsCommand.ReplaceFile)
-            {
-                _logger.LogTrace($"{entity.ClassName}Repository.cs not created. A file with that name already exists");
-                return;
-            }
-
-            using (var stream = new FileStream(pathfilemap, FileMode.Create, FileAccess.Write, FileShare.Write, 4096, useAsync: true))
-            {
-                var bytes = Encoding.UTF8.GetBytes(sb.ToString());
-                await stream.WriteAsync(bytes, 0, bytes.Length);
-                stream.Close();
-            }
-            _logger.LogTrace($"{entity.ClassName}Repository.cs created");
+            return sb.ToString();
         }
 
-        private async Task CreateInterfaceFile(EntityFile entity)
+        private async Task SaveRepositoryClass(string content, EntityMap map)
         {
-            StringBuilder sb = new StringBuilder();
-            string identy = "   ";
+            string pathmap = Path.Combine(_csproj.ProjectPath, Folder.Repositories);
+            string pathfile = Path.Combine(pathmap, $"{map.ClassName}Repository.cs");
 
-            sb.AppendLine($"using {entity.Namespace}.{Folder.Entities};");
-            sb.AppendLine();
-            sb.AppendLine($"namespace {entity.Namespace}.{Folder.Interfaces}");
-            sb.AppendLine("{");
-            sb.AppendLine($"{identy}public interface I{entity.ClassName}Repository : IRepositoryBase<{entity.ClassName}>");
-            sb.AppendLine($"{identy}" + "{");
-            sb.AppendLine($"{identy}" + "}");
-            sb.AppendLine("}");
-
-            string pathmap = Path.Combine(_optionsCommand.DirectoryWorking, Folder.Interfaces);
-            string pathfilemap = Path.Combine(pathmap, $"I{entity.ClassName}Repository.cs");
-
-            if (!Directory.Exists(pathmap))
-                Directory.CreateDirectory(pathmap);
-
-            if (File.Exists(pathfilemap) && !_optionsCommand.ReplaceFile)
+            if (File.Exists(pathfile) && !_options.ReplaceFile)
             {
-                _logger.LogTrace($"I{entity.ClassName}Repository.cs not created. A file with that name already exists");
+                _logger.LogTrace($"{map.ClassName}Repository.cs not created. A file with that name already exists");
                 return;
             }
 
-            using (var stream = new FileStream(pathfilemap, FileMode.Create, FileAccess.Write, FileShare.Write, 4096, useAsync: true))
+            await _fileService.SaveFile(content, pathfile);
+            _logger.LogTrace($"{map.ClassName}Repository.cs created");
+        }
+
+        public async Task CreateRepositoryBase()
+        {
+            _logger.LogTrace("Creating RepositoryBase...");
+
+            await GenerateRepositoryBaseInterface();
+            await GenerateRepositoryBaseClass();
+        }
+
+        private async Task GenerateRepositoryBaseInterface()
+        {
+            string filename = "IRepositoryBase.cs";
+            string pathname = Path.Combine(_csproj.ProjectPath, Folder.Interfaces);
+            string fullpath = Path.Combine(pathname, filename);
+
+            if (!Directory.Exists(pathname))
+                Directory.CreateDirectory(pathname);
+
+            if (File.Exists(fullpath) && !_options.ReplaceFile)
             {
-                var bytes = Encoding.UTF8.GetBytes(sb.ToString());
-                await stream.WriteAsync(bytes, 0, bytes.Length);
-                stream.Close();
+                _logger.LogTrace($"{filename} not created. A file with that name already exists");
+                return;
             }
-            _logger.LogTrace($"I{entity.ClassName}Repository.cs created");
+
+            string content = await _fileService.GetContentFileFromUrl("https://raw.githubusercontent.com/deivesonsilva/devs-entity-framework-core/development/docs/IRepositoryBase.cs");
+
+            if (string.IsNullOrEmpty(content))
+                throw new Exception("Cannot load template IRepositoryBase from Github");
+
+            content = content.Replace("//[us-rep]", $"{_csproj.ProjectPath}.{Folder.Entities};");
+            content = content.Replace("//[ns-rep]", $"{_csproj.ProjectPath}.{Folder.Interfaces}");
+
+            await _fileService.SaveFile(content, fullpath);
+            _logger.LogTrace($"{filename} created");
+        }
+
+        private async Task GenerateRepositoryBaseClass()
+        {
+            string filename = "RepositoryBase.cs";
+            string fullpath = Path.Combine(_csproj.ProjectPath, filename);
+
+            if (File.Exists(fullpath) && !_options.ReplaceFile)
+            {
+                _logger.LogTrace($"{filename} not created. A file with that name already exists");
+                return;
+            }
+
+            string content = await _fileService.GetContentFileFromUrl("https://raw.githubusercontent.com/deivesonsilva/devs-entity-framework-core/development/docs/RepositoryBase.cs");
+
+            if (string.IsNullOrEmpty(content))
+                throw new Exception("Cannot load template RepositoryBase from Github");
+
+            StringBuilder sb = new StringBuilder();
+
+            sb.AppendLine($"{_csproj.ProjectPath}.{Folder.Entities};");
+            sb.AppendLine($"{_csproj.ProjectPath}.{Folder.Interfaces};");
+
+            content = content.Replace("//[us-rep]", sb.ToString());
+            content = content.Replace("//[ns-rep]", $"{_csproj.ProjectPath}");
+
+            await _fileService.SaveFile(content, fullpath);
+            _logger.LogTrace($"{filename} created");
         }
     }
 }

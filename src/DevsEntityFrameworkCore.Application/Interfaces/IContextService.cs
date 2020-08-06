@@ -2,8 +2,8 @@
 
 namespace DevsEntityFrameworkCore.Application.Interfaces
 {
-    public interface IMappingService
+    public interface IContextService
     {
-        Task CreateMappingFiles();
+        Task CreateContextFile();
     }
 }

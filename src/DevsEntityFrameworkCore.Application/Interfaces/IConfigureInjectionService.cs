@@ -2,8 +2,8 @@
 
 namespace DevsEntityFrameworkCore.Application.Interfaces
 {
-    public interface IStartService
+    public interface IConfigureInjectionService
     {
-        Task Handler();
+        Task CreateConfigureInjection();
     }
 }

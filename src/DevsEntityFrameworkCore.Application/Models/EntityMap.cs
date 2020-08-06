@@ -2,10 +2,9 @@
 
 namespace DevsEntityFrameworkCore.Application.Models
 {
-    public class EntityFile
+    public class EntityMap
     {
-        public string Namespace { get; set; }
         public string ClassName { get; set; }
-        public ICollection<EntityProperty> Properties { get; set; }
+        public ICollection<EntityPropertyMap> Properties { get; set; }
     }
 }

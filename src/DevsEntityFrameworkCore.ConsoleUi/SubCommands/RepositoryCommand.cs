@@ -1,7 +1,6 @@
 ﻿using System.Threading.Tasks;
 using DevsEntityFrameworkCore.Application.Interfaces;
 using McMaster.Extensions.CommandLineUtils;
-using Microsoft.Extensions.Logging;
 
 namespace DevsEntityFrameworkCore.ConsoleUi.SubCommands
 {
@@ -9,30 +8,30 @@ namespace DevsEntityFrameworkCore.ConsoleUi.SubCommands
     public class RepositoryCommand : OptionsCommandBase
     {
         private readonly IRepositoryService _repositoryService;
-        private readonly IOptionsCommand _optionsCommand;
+        private readonly IOptionsCommand _options;
+        private readonly ICsprojService _csprojService;
 
         public RepositoryCommand(
-            ILoggerFactory logger,
-            IConsole console,
             IRepositoryService repositoryService,
-            IOptionsCommand optionsCommand) : base(logger, console)
+            IOptionsCommand options,
+            ICsprojService csprojService)
         {
             _repositoryService = repositoryService;
-            _optionsCommand = optionsCommand;
+            _options = options;
+            _csprojService = csprojService;
         }
 
-        protected override async Task<int> OnExecute(CommandLineApplication application)
+        protected override async Task OnExecute(CommandLineApplication application)
         {
             if (!string.IsNullOrEmpty(OptionDirectoryWorking))
-                _optionsCommand.DirectoryWorking = OptionDirectoryWorking;
+                _options.DirectoryWorking = OptionDirectoryWorking;
 
             if (OptionReplaceFile.HasValue)
-                _optionsCommand.ReplaceFile = OptionReplaceFile.Value;
-            
-            await _repositoryService.Handler();
-            Logger.LogTrace("Repository Finished");
+                _options.ReplaceFile = OptionReplaceFile.Value;
 
-            return await base.OnExecute(application);
+            _csprojService.IsValidProject(_options.DirectoryWorking);
+
+            await _repositoryService.CreateRepositories();
         }
     }
 }
