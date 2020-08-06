@@ -151,8 +151,8 @@ namespace DevsEntityFrameworkCore.Application.Services
             if (string.IsNullOrEmpty(content))
                 throw new Exception("Cannot load template IRepositoryBase from Github");
 
-            content = content.Replace("//[us-rep]", $"{_csproj.ProjectPath}.{Folder.Entities};");
-            content = content.Replace("//[ns-rep]", $"{_csproj.ProjectPath}.{Folder.Interfaces}");
+            content = content.Replace("//[us-rep]", $"{_csproj.ProjectNamespace}.{Folder.Entities};");
+            content = content.Replace("//[ns-rep]", $"{_csproj.ProjectNamespace}.{Folder.Interfaces}");
 
             await _fileService.SaveFile(content, fullpath);
             _logger.LogTrace($"{filename} created");
@@ -176,8 +176,8 @@ namespace DevsEntityFrameworkCore.Application.Services
 
             StringBuilder sb = new StringBuilder();
 
-            sb.AppendLine($"{_csproj.ProjectPath}.{Folder.Entities};");
-            sb.AppendLine($"{_csproj.ProjectPath}.{Folder.Interfaces};");
+            sb.AppendLine($"{_csproj.ProjectNamespace}.{Folder.Entities};");
+            sb.AppendLine($"{_csproj.ProjectNamespace}.{Folder.Interfaces};");
 
             content = content.Replace("//[us-rep]", sb.ToString());
             content = content.Replace("//[ns-rep]", $"{_csproj.ProjectPath}");
