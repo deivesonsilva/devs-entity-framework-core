@@ -1,11 +1,15 @@
-# Introdução
+# Introduction
 
-.NET Core command line (CLI) para otimizar o desenvolvimento da camada de acesso a dados utilizando Entity Framework Core.
+.NET Core command line (CLI) to optimize development the data access layer using Entity Framework Core.
 
-* Cria a configuração do Objeto
-* Prepara a classe base, contexto e o unit of work
-* Cria a Interface e o Repositório
+* Create the entity configuration to database
+* Create the class base, context and unit of work
+* Create the entity interface and repository
 
-# Desenvolvimento
+## Development
 
 * .Net Core 3.1 Console Application
+
+## Documentation
+
+* [Commands](docs/commands.md)
