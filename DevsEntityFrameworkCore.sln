@@ -8,6 +8,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		docs\RepositoryBase.cs = docs\RepositoryBase.cs
 		docs\IRepositoryUnitWork.cs = docs\IRepositoryUnitWork.cs
 		docs\RepositoryUnitWork.cs = docs\RepositoryUnitWork.cs
+		docs\Commands.md = docs\Commands.md
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{3365FBB8-377E-4B3A-91E3-91B9B44D4CB9}"
