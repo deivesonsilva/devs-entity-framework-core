@@ -75,6 +75,11 @@ namespace DevsEntityFrameworkCore.ConsoleUi.SubCommands
                 _options.RunAll = OptionRunAll.Value;
 
             _csprojService.IsValidProject(_options.DirectoryWorking);
+
+            if ((!_options.CreateContext &&
+                !_options.CreateUnitOfWork &&
+                !_options.CreateRepositoryBase &&
+                !_options.CreateInitialize) || _options.RunAll)
             await _entityService.CreateAbstractEntity();
 
             if (_options.RunAll)

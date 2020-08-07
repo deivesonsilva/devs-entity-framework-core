@@ -68,7 +68,7 @@ namespace DevsEntityFrameworkCore.Application.Services
             sb.AppendLine("using Microsoft.AspNetCore.Builder;");
             sb.AppendLine("using Microsoft.EntityFrameworkCore;");
             sb.AppendLine("using Microsoft.Extensions.Configuration;");
-            sb.AppendLine("using Microsoft.Extensions.DependencyInjection");
+            sb.AppendLine("using Microsoft.Extensions.DependencyInjection;");
             sb.AppendLine($"using {_csproj.ProjectNamespace}.{Folder.Interfaces};");
             sb.AppendLine($"using {_csproj.ProjectNamespace}.{Folder.Repositories};");
             sb.AppendLine();

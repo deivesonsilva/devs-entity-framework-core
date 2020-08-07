@@ -144,7 +144,7 @@ namespace DevsEntityFrameworkCore.Application.Services
             sb.AppendLine($"{identy}" + "{");
             sb.AppendLine($"{identy}{identy}[Key]");
             sb.AppendLine($"{identy}{identy}[DatabaseGenerated(DatabaseGeneratedOption.None)]");
-            sb.AppendLine($"{identy}{identy}Public Guid Id "+ "{ get; set; } = Guid.NewGuid();");
+            sb.AppendLine($"{identy}{identy}public Guid Id "+ "{ get; set; } = Guid.NewGuid();");
             sb.AppendLine($"{identy}" + "}");
             sb.AppendLine("}");
 
