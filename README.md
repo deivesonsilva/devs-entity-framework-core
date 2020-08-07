@@ -4,12 +4,12 @@
 
 * Create the entity configuration to database
 * Create the class base, context and unit of work
-* Create the entity interface and repositoy
+* Create the entity interface and repository
 
-# Development
+## Development
 
 * .Net Core 3.1 Console Application
 
-# Documentation
+## Documentation
 
 * [Commands](docs/commands.md)
