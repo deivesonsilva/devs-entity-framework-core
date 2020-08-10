@@ -12,4 +12,4 @@
 
 ## Documentation
 
-* [Commands](/blob/master/docs/Commands.md)
+* [Commands](/docs/Commands.md)
