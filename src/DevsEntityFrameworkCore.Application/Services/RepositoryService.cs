@@ -146,7 +146,7 @@ namespace DevsEntityFrameworkCore.Application.Services
                 return;
             }
 
-            string content = await _fileService.GetContentFileFromUrl("https://raw.githubusercontent.com/deivesonsilva/devs-entity-framework-core/development/docs/IRepositoryBase.cs");
+            string content = await _fileService.GetContentFileFromUrl("https://raw.githubusercontent.com/deivesonsilva/devs-entity-framework-core/master/docs/IRepositoryBase.cs");
 
             if (string.IsNullOrEmpty(content))
                 throw new Exception("Cannot load template IRepositoryBase from Github");
@@ -169,7 +169,7 @@ namespace DevsEntityFrameworkCore.Application.Services
                 return;
             }
 
-            string content = await _fileService.GetContentFileFromUrl("https://raw.githubusercontent.com/deivesonsilva/devs-entity-framework-core/development/docs/RepositoryBase.cs");
+            string content = await _fileService.GetContentFileFromUrl("https://raw.githubusercontent.com/deivesonsilva/devs-entity-framework-core/master/docs/RepositoryBase.cs");
 
             if (string.IsNullOrEmpty(content))
                 throw new Exception("Cannot load template RepositoryBase from Github");

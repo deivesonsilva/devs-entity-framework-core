@@ -51,7 +51,7 @@ namespace DevsEntityFrameworkCore.Application.Services
             if (!File.Exists(pathcontextfile))
                 throw new Exception("RepositoryContext.cs not found");
 
-            string content = await _fileService.GetContentFileFromUrl("https://raw.githubusercontent.com/deivesonsilva/devs-entity-framework-core/development/docs/IRepositoryUnitWork.cs");
+            string content = await _fileService.GetContentFileFromUrl("https://raw.githubusercontent.com/deivesonsilva/devs-entity-framework-core/master/docs/IRepositoryUnitWork.cs");
 
             if (string.IsNullOrEmpty(content))
                 throw new Exception("Cannot load template IUnitOfWork from Github");
@@ -73,7 +73,7 @@ namespace DevsEntityFrameworkCore.Application.Services
                 return;
             }
 
-            string content = await _fileService.GetContentFileFromUrl("https://raw.githubusercontent.com/deivesonsilva/devs-entity-framework-core/development/docs/RepositoryUnitWork.cs");
+            string content = await _fileService.GetContentFileFromUrl("https://raw.githubusercontent.com/deivesonsilva/devs-entity-framework-core/master/docs/RepositoryUnitWork.cs");
 
             if (string.IsNullOrEmpty(content))
                 throw new Exception("Cannot load template UnitOfWork from Github");
